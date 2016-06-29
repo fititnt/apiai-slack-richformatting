@@ -1,48 +1,62 @@
 #!/usr/bin/env python
 
-import urllib
-import json
-import os
+import urllib #Библиотека для рабобты с урлами
+import json #Библиотека для работы с форматом json
+import os #Библиотека для работы с файловой системой
 
-from flask import Flask
-from flask import request
-from flask import make_response
+from flask import Flask #Класс фреймворка Flask для создания инстанса сервера
+from flask import request #Объект чтобы делать запросы
+from flask import make_response #объект чтобы отдавать ответы
 
 # Flask app should start in global layout
+#Создаем объект приложения
 app = Flask(__name__)
 
 
+#Создаем ф-ю которая будет вызываться когда кто-то обращается по адрессу /webhook
 @app.route('/webhook', methods=['POST'])
 def webhook():
+    #Смотрим что мы получили от api.ai
     req = request.get_json(silent=True, force=True)
-
+    #выводим это
     print("Request:")
     print(json.dumps(req, indent=4))
-
+    #Вызываем ф-ю по обработке запроса
     res = processRequest(req)
-
+    #конвертируем в json
     res = json.dumps(res, indent=4)
-    # print(res)
+    #Генерируем ответ
     r = make_response(res)
+    #говорим что это json
     r.headers['Content-Type'] = 'application/json'
+    #и отправляем обратно api.ai
     return r
 
 
 def processRequest(req):
+    #если он не хочет погоды - то возвращаем пустой ответ
     if req.get("result").get("action") != "yahooWeatherForecast":
         return {}
+    #Обращаемся к API Yahoo
     baseurl = "https://query.yahooapis.com/v1/public/yql?"
+    #Строим запрос
     yql_query = makeYqlQuery(req)
+    #Если запрос пустой - возвращаем пустой ответ
     if yql_query is None:
         return {}
+    #Генерируем итоговый URL
     yql_url = baseurl + urllib.urlencode({'q': yql_query}) + "&format=json"
     print(yql_url)
 
+    #Делаем GET запрос по этому URL и читаем ответ
     result = urllib.urlopen(yql_url).read()
     print("yql result: ")
     print(result)
 
+    #Конвертируем из JSON в словарь
     data = json.loads(result)
+    
+    #Генерируем ответ webhook'a
     res = makeWebhookResult(data)
     return res
 
